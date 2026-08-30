@@ -47,7 +47,7 @@ please verify", to protect signal quality for the small maintainer team.
 
 ### Sub-Task 1 — Known Issue Registry
 
-**Status:** [ ] pending
+**Status:** [x] done
 
 **Intent:**
 Create the single source of truth for known IBM i issues. This is a static JSON file —
@@ -96,7 +96,7 @@ the pattern-matching concept.
 
 ### Sub-Task 2 — Mock Diagnostic Data
 
-**Status:** [ ] pending
+**Status:** [x] done
 
 **Intent:**
 Provide realistic simulated IBM i diagnostic output so the demo works without a live
@@ -126,7 +126,7 @@ It must contain enough detail to trigger a positive symptom match for both demo 
 
 ### Sub-Task 3 — Diagnostic Command Runner
 
-**Status:** [ ] pending
+**Status:** [x] done
 
 **Intent:**
 Implement the script that collects live IBM i diagnostic data when a real system is
@@ -168,7 +168,7 @@ deliberately IDE-agnostic (plain Node.js, no Bob-specific imports).
 
 ### Sub-Task 4 — Symptom Matcher with Confidence Score
 
-**Status:** [ ] pending
+**Status:** [x] done
 
 **Intent:**
 Implement the deterministic lookup that maps diagnostic JSON output to a known issue
@@ -222,7 +222,7 @@ No AI, no fuzzy logic, no external calls. IDE-agnostic.
 
 ### Sub-Task 5 — Orchestration Layer: Bob Skill + Mode and AGENT.md
 
-**Status:** [ ] pending
+**Status:** [x] done
 
 **Intent:**
 Create the two thin orchestration adapters that sit on top of the shared core engine:
@@ -285,7 +285,7 @@ mechanism and file format.
 
 ### Sub-Task 6 — Templates: Resolution Report and GitHub Issue
 
-**Status:** [ ] pending
+**Status:** [x] done
 
 **Intent:**
 Provide two structured templates the AI fills in: (1) the developer-facing resolution
@@ -334,7 +334,7 @@ AI-proposed, so maintainers can verify before acting.
 
 ### Sub-Task 7 — README and Demo Script
 
-**Status:** [ ] pending
+**Status:** [x] done
 
 **Intent:**
 Update the README with project description, architecture overview, VS Code compatibility

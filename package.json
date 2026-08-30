@@ -1,0 +1,12 @@
+{
+  "name": "ibmi-developer-detective",
+  "version": "1.0.0",
+  "description": "IBM i Developer Detective — intelligent IBM i troubleshooting workflow for Bob and VS Code",
+  "scripts": {
+    "diagnose": "node src/run-diagnostics.js",
+    "match": "node src/match-symptom.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

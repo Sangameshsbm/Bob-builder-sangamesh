@@ -1,0 +1,96 @@
+[
+  {
+    "id": "port-449-blocked",
+    "title": "Cannot connect to IBM i — port 449 blocked",
+    "symptoms": [
+      "port 449",
+      "cannot connect",
+      "connection refused",
+      "ECONNREFUSED",
+      "sign-on service",
+      "DDM",
+      "as-signon",
+      "cwbsy",
+      "host server"
+    ],
+    "root_cause": "IBM i host servers communicate over port 449 (central server / sign-on service). When a firewall rule, network policy, or IBM i subsystem QUSRWRK is not active, outbound or inbound connections on port 449 are refused, preventing any IBM i client (Code for IBM i, ACS, JDBC) from completing the sign-on handshake.",
+    "resolution_steps": [
+      "Verify port 449 is open on the network firewall between your workstation and the IBM i system: run 'Test-NetConnection <ibmi-host> -Port 449' in PowerShell.",
+      "On the IBM i system, confirm the QUSRWRK subsystem is active: WRKACTJOB SBS(QUSRWRK).",
+      "Start the host servers if not running: STRHOSTSVR SERVER(*ALL).",
+      "Confirm the sign-on server is listening: NETSTAT *CNN, look for port 449 in LISTEN state.",
+      "If behind a corporate VPN, confirm IBM i traffic is routed through the VPN tunnel and not split-tunnelled away."
+    ],
+    "validation_commands": [
+      "NETSTAT *CNN",
+      "WRKACTJOB SBS(QUSRWRK)",
+      "STRHOSTSVR SERVER(*ALL)"
+    ],
+    "suggested_approach": "Ensure QUSRWRK subsystem is active and host servers are started via STRHOSTSVR SERVER(*ALL). If a firewall is blocking port 449, the network or firewall configuration needs to be updated to allow TCP traffic on port 449 between client workstations and the IBM i system. No code change to Code for IBM i is expected to be required for this issue.",
+    "confidence_hint": 70,
+    "references": [
+      "https://www.ibm.com/docs/en/i/7.5?topic=services-host-server-ports",
+      "https://www.ibm.com/support/pages/ibm-i-host-server-port-numbers"
+    ]
+  },
+  {
+    "id": "mapepire-hang-3239",
+    "title": "Stuck at 'Starting Mapepire' after upgrading to Code for IBM i 3.x",
+    "symptoms": [
+      "Starting Mapepire",
+      "NOXDBSRV",
+      "Mapepire",
+      "upgrade",
+      "3.x",
+      "stuck",
+      "hang",
+      "MSGW",
+      "NOXDB",
+      "server program",
+      "job waiting",
+      "database server",
+      "connection timeout",
+      "mapepire-server"
+    ],
+    "root_cause": "After upgrading to Code for IBM i 3.x, the extension attempts to start the Mapepire database server (NOXDBSRV). If a previous Mapepire job is still active from an older version — or if the NOXDBSRV service program objects on the IBM i system are stale or locked — the startup sequence hangs indefinitely waiting for the server to respond. The extension does not time out gracefully in this state.",
+    "resolution_steps": [
+      "Open an IBM i terminal session and run: WRKACTJOB JOB(NOXDB*) to identify any stuck Mapepire jobs.",
+      "End any stuck jobs found: ENDJOB JOB(<job-number>/QUSER/NOXDBSRV) OPTION(*IMMED).",
+      "Clear any object locks on NOXDBSRV: WRKOBJLCK OBJ(QGPL/NOXDBSRV) OBJTYPE(*SRVPGM).",
+      "In VS Code, run the command 'Code for IBM i: Disconnect' then reconnect to the IBM i system.",
+      "If the hang persists, delete and reinstall the Mapepire server objects: in Code for IBM i, open the command palette and run 'Code for IBM i: Install Mapepire'.",
+      "Restart VS Code if the status bar still shows 'Starting Mapepire' after reconnecting."
+    ],
+    "validation_commands": [
+      "WRKACTJOB JOB(NOXDB*)",
+      "WRKOBJLCK OBJ(QGPL/NOXDBSRV) OBJTYPE(*SRVPGM)",
+      "SELECT JOB_NAME, JOB_STATUS, ELAPSED_TIME FROM TABLE(QSYS2.ACTIVE_JOB_INFO()) WHERE JOB_NAME LIKE '%NOXDB%'"
+    ],
+    "suggested_approach": "The root cause appears to be that Code for IBM i 3.x does not gracefully handle a pre-existing or stale NOXDBSRV job on the IBM i system when initiating the Mapepire connection. A suggested fix would be to add a startup check in the Mapepire connection logic that: (1) queries QSYS2.ACTIVE_JOB_INFO() for any existing NOXDB* jobs before attempting to start a new server instance, (2) either reuses the existing job if it is healthy or ends it cleanly before starting fresh, and (3) implements a configurable timeout with a user-visible error message rather than hanging indefinitely. This approach is AI-proposed — Code for IBM i maintainers should verify against the actual Mapepire startup code before implementation.",
+    "confidence_hint": 75,
+    "references": [
+      "https://github.com/halcyon-tech/vscode-ibmi/issues/3239",
+      "https://github.com/Mapepire-IBMi/mapepire-server",
+      "https://codefori.github.io/docs/"
+    ]
+  },
+  {
+    "id": "jdbc-connection-timeout",
+    "title": "TODO: JDBC / Db2 connection timeout under heavy load",
+    "symptoms": [
+      "TODO: add symptom keywords here"
+    ],
+    "root_cause": "TODO: describe the root cause once confirmed from issue reports.",
+    "resolution_steps": [
+      "TODO: add ordered resolution steps."
+    ],
+    "validation_commands": [
+      "TODO: add CL or SQL validation commands."
+    ],
+    "suggested_approach": "TODO: describe the suggested fix approach for maintainers.",
+    "confidence_hint": 70,
+    "references": [
+      "TODO: add reference URLs"
+    ]
+  }
+]
