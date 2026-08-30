@@ -1,8 +1,7 @@
-# IBM i Developer Detective — Resolution Report
+# Code for IBM i Detective — Investigation Report
 
 **Generated:** 2025-01-15T10:45:00Z
-**System:** DEVIBMI01
-**Investigated by:** IBM i Developer Detective (Bob skill)
+**Investigated by:** Code for IBM i Detective
 
 ---
 
@@ -14,124 +13,73 @@ connections can be established. The extension appears to hang indefinitely durin
 
 ---
 
-## System Information
+## Extension Information
 
 | Field | Value |
 |---|---|
-| IBM i System | DEVIBMI01 |
-| Mapepire Version | 1.2.0 |
-| Diagnostic Collected | 2025-01-15T10:42:17Z |
-| Code for IBM i Version | 3.0.2 (upgraded from 2.14.1 on 2025-01-14) |
+| Code for IBM i Version | 3.0.2 |
+| VS Code Version | 1.96.0 |
+| Platform | win32 |
+| Previous Version | 2.14.1 |
+| Upgrade Date | 2025-01-14 |
 
 ---
 
-## Diagnostic Findings
+## Key Errors from Extension Log
 
-**Active Jobs (Mapepire / NOXDB):**
 ```
-Job:      284719/QUSER/NOXDBSRV
-Status:   MSGW  (waiting for reply — hung for 47 minutes)
-Function: PGM-NOXDBSRV
-Subsystem: QUSRWRK
-```
-
-**Relevant Log Entries:**
-```
-09:55:01  CPIAD08  [INFO]   Starting Mapepire database server version 1.2.0 on port 8076.
-09:55:04  CPIAD09  [INFO]   NOXDB server program initialising. Waiting for service program objects.
-09:55:06  MCH3601  [ERROR]  Pointer not set for location referenced. Server program NOXDBSRV
-                            in QGPL may have stale object references from a previous version.
-                            Job entered MSGW state.
-10:42:17  VSCODE01 [WARN]   Code for IBM i 3.x: connection timed out waiting for Mapepire.
-                            Status bar stuck at "Starting Mapepire".
-```
-
-**Object Locks:**
-```
-Object: NOXDBSRV  Library: QGPL  Type: *SRVPGM
-Lock: SHRRD  Scope: JOB  Held by: 284719/QUSER/NOXDBSRV
+ERROR - Mapepire server did not respond within expected time
+WARN  - Previous Mapepire job may still be active from version 2.x
+ERROR - MCH3601 received from NOXDBSRV: Pointer not set for location referenced
+ERROR - Connection timeout waiting for Mapepire. Status: Starting Mapepire
+WARN  - Upgrade from 2.14.1 to 3.0.2 detected. Mapepire server objects may need reinstall.
 ```
 
 ---
 
-## Diagnosis
+## GitHub Issues Search
 
-**Matched Issue:** Stuck at 'Starting Mapepire' after upgrading to Code for IBM i 3.x
-**Confidence Score:** 100% (high)
-**Matched Keywords:** Starting Mapepire, NOXDBSRV, Mapepire, upgrade, 3.x, stuck, hang,
-MSGW, NOXDB, server program, job waiting, database server, connection timeout, mapepire-server
+**Query:** `Starting Mapepire stuck upgrade 3.x`
+**Results found:** 2
 
-The diagnostic data confirms a stale NOXDBSRV job from the previous version is blocking
-the new Mapepire startup. The job is in MSGW state — waiting for a reply that will never
-come — and holds a shared read lock on the NOXDBSRV service program object in QGPL. The
-Code for IBM i 3.x extension is waiting indefinitely for the server to respond, with no
-timeout mechanism to recover gracefully.
+| # | Title | State |
+|---|---|---|
+| [#3239](https://github.com/codefori/vscode-ibmi/issues/3239) | Stuck on 'Starting Mapepire' after upgrading to 3.x | 🔴 Open |
+| [#3201](https://github.com/codefori/vscode-ibmi/issues/3201) | Mapepire fails to start after system upgrade - NOXDBSRV in MSGW | ✅ Closed (fixed in 2.14.1) |
 
 ---
 
-## Root Cause
+## Analysis
 
-After upgrading to Code for IBM i 3.x, the extension attempts to start the Mapepire
-database server (NOXDBSRV). A previous Mapepire job from version 2.x is still active and
-in MSGW state, holding a lock on the NOXDBSRV service program objects in QGPL. The stale
-object references from the old version cause the new startup to fail immediately, leaving
-the job stuck in MSGW. The extension does not time out gracefully in this state, resulting
-in the status bar hanging indefinitely at "Starting Mapepire".
+**Status:** Known open issue — tracked at https://github.com/codefori/vscode-ibmi/issues/3239
 
----
+Issue #3239 matches this symptom exactly. It is currently open with 14 comments.
+Issue #3201 was a related regression that was fixed in 2.14.1 but may have regressed in 3.x.
 
-## Resolution Steps
-
-1. Open an IBM i terminal session and identify the stuck job:
-   ```
-   WRKACTJOB JOB(NOXDB*)
-   ```
-2. End the stuck job immediately:
-   ```
-   ENDJOB JOB(284719/QUSER/NOXDBSRV) OPTION(*IMMED)
-   ```
-3. Verify the object lock has been released:
-   ```
-   WRKOBJLCK OBJ(QGPL/NOXDBSRV) OBJTYPE(*SRVPGM)
-   ```
-4. In VS Code, run **Code for IBM i: Disconnect** from the command palette.
-5. Reconnect to the IBM i system. The extension should now start Mapepire cleanly.
-6. If the hang persists, reinstall the Mapepire server objects via the command palette:
-   **Code for IBM i: Install Mapepire**
-7. Restart VS Code if the status bar still shows "Starting Mapepire" after reconnecting.
+The extension log confirms the pattern: the extension attempts to start Mapepire, receives
+an MCH3601 error from a stale NOXDBSRV job left over from version 2.x, and then hangs
+indefinitely without a timeout or user-visible error message.
 
 ---
 
-## Validation Checklist
+## Recommended Action
 
-Run these commands after applying the fix to confirm the issue is resolved:
-
-```sql
--- Confirm no stuck NOXDB jobs remain
-SELECT JOB_NAME, JOB_STATUS, ELAPSED_TIME
-FROM TABLE(QSYS2.ACTIVE_JOB_INFO())
-WHERE JOB_NAME LIKE '%NOXDB%'
-```
-
-```
--- Confirm no object locks on NOXDBSRV
-WRKOBJLCK OBJ(QGPL/NOXDBSRV) OBJTYPE(*SRVPGM)
-
--- Confirm QUSRWRK is active
-WRKACTJOB SBS(QUSRWRK)
-```
-
-Expected result after fix: No NOXDB jobs in MSGW state. No locks on NOXDBSRV.
-VS Code status bar transitions from "Starting Mapepire" to a connected state.
+1. Check issue #3239 at https://github.com/codefori/vscode-ibmi/issues/3239 — add your
+   diagnostic log as a comment to help the maintainers understand the scope of impact.
+2. Apply the workaround described in the issue thread:
+   - End any stuck NOXDBSRV jobs on the IBM i system
+   - Reconnect in VS Code
+3. If you cannot find a workaround in the thread, raise a new related issue using the
+   generated issue body below.
 
 ---
 
 ## References
 
-- https://github.com/halcyon-tech/vscode-ibmi/issues/3239
+- https://github.com/codefori/vscode-ibmi/issues/3239
+- https://github.com/codefori/vscode-ibmi/issues/3201
 - https://github.com/Mapepire-IBMi/mapepire-server
-- https://codefori.github.io/docs/
 
 ---
 
-*Generated by IBM i Developer Detective. Diagnostic data is factual; narrative is AI-assisted.*
+*Generated by Code for IBM i Detective. Diagnostic data is factual; analysis is AI-assisted.*

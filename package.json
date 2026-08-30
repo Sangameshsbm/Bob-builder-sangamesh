@@ -1,10 +1,10 @@
 {
-  "name": "ibmi-developer-detective",
+  "name": "code-for-i-detective",
   "version": "1.0.0",
-  "description": "IBM i Developer Detective — intelligent IBM i troubleshooting workflow for Bob and VS Code",
+  "description": "Code for IBM i Detective — intelligent troubleshooting for the Code for IBM i VS Code extension",
   "scripts": {
-    "diagnose": "node src/run-diagnostics.js",
-    "match": "node src/match-symptom.js"
+    "collect": "node src/collect-diagnostics.js",
+    "search": "node src/search-github-issues.js"
   },
   "engines": {
     "node": ">=18"

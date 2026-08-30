@@ -1,14 +1,14 @@
-# [IBM i] Stuck at "Starting Mapepire" after upgrading to Code for IBM i 3.x
+# [Code for IBM i] Stuck at "Starting Mapepire" after upgrading to 3.x
 
 ## Environment
 
 | Field | Value |
 |---|---|
-| Code for IBM i Version | 3.0.2 (upgraded from 2.14.1 on 2025-01-14) |
+| Code for IBM i Version | 3.0.2 |
+| Previous Version | 2.14.1 |
 | VS Code Version | 1.96.0 |
-| IBM i OS Release | IBM i 7.5 TR3 |
-| Operating System | Windows 11 |
-| Mapepire Version | 1.2.0 |
+| Platform / OS | Windows 11 (win32) |
+| Upgrade Date | 2025-01-14 |
 
 ---
 
@@ -16,39 +16,60 @@
 
 After upgrading from Code for IBM i 2.14.1 to 3.0.2, the VS Code status bar is permanently
 stuck showing **"Starting Mapepire"**. No database connections can be established. The
-extension appears to hang indefinitely during startup. Disconnecting and reconnecting does
-not resolve the issue. Restarting VS Code does not resolve the issue.
+extension hangs indefinitely during startup. Disconnecting and reconnecting does not resolve
+the issue. Restarting VS Code does not resolve the issue.
 
 ---
 
-## Diagnostic Data Summary
+## Extension Log — Key Errors
 
-Collected by IBM i Developer Detective on 2025-01-15T10:42:17Z from system DEVIBMI01.
-
-**Active Jobs (Mapepire / NOXDB):**
 ```
-284719/QUSER/NOXDBSRV  Status: MSGW  Elapsed: 00:47:23  Function: PGM-NOXDBSRV
-```
-One NOXDBSRV job has been in MSGW state (waiting for reply) for 47 minutes.
-
-**Relevant Log Entries:**
-```
-09:55:01  CPIAD08  Starting Mapepire database server version 1.2.0 on port 8076.
-09:55:04  CPIAD09  NOXDB server program initialising. Waiting for service program objects.
-09:55:06  MCH3601  Pointer not set for location referenced. NOXDBSRV in QGPL — stale object
-                   references from previous version. Job entered MSGW state.
-10:42:17  VSCODE01 Code for IBM i 3.x: connection timed out. Status bar stuck at
-                   "Starting Mapepire". Upgrade from 2.x to 3.x performed 2025-01-14.
+ERROR - Mapepire server did not respond within expected time
+WARN  - Previous Mapepire job may still be active from version 2.x
+ERROR - MCH3601 received from NOXDBSRV: Pointer not set for location referenced
+ERROR - Connection timeout waiting for Mapepire. Status: Starting Mapepire
+WARN  - Upgrade from 2.14.1 to 3.0.2 detected. Mapepire server objects may need reinstall.
 ```
 
-**Object Locks:**
+<details>
+<summary>Full output log</summary>
+
 ```
-QGPL/NOXDBSRV (*SRVPGM)  Lock: SHRRD  Held by: 284719/QUSER/NOXDBSRV
+[2025-01-15 09:54:58] Code for IBM i: Connecting to DEVIBMI01
+[2025-01-15 09:55:00] Code for IBM i: Connection established on port 449
+[2025-01-15 09:55:01] Code for IBM i: Starting Mapepire...
+[2025-01-15 09:55:01] Code for IBM i: Launching NOXDBSRV on remote system
+[2025-01-15 09:55:06] Code for IBM i: ERROR - Mapepire server did not respond within expected time
+[2025-01-15 09:55:06] Code for IBM i: WARN  - Previous Mapepire job may still be active from version 2.x
+[2025-01-15 09:55:06] Code for IBM i: ERROR - MCH3601 received from NOXDBSRV: Pointer not set for location referenced
+[2025-01-15 10:42:17] Code for IBM i: ERROR - Connection timeout waiting for Mapepire. Status: Starting Mapepire
+[2025-01-15 10:42:17] Code for IBM i: WARN  - Upgrade from 2.14.1 to 3.0.2 detected. Mapepire server objects may need reinstall.
 ```
 
-**Detective Confidence Score:** 100% — high confidence match against known issue registry.
-**Matched Keywords:** Starting Mapepire, NOXDBSRV, Mapepire, upgrade, 3.x, stuck, hang,
-MSGW, NOXDB, server program, job waiting, database server, connection timeout, mapepire-server
+</details>
+
+---
+
+## Connection Trace
+
+```
+[TRACE] 09:54:58.123 Initiating TCP connection to DEVIBMI01:449
+[TRACE] 09:55:00.341 Sign-on handshake complete
+[TRACE] 09:55:01.002 Sending STRSVR request for NOXDBSRV
+[TRACE] 09:55:01.887 NOXDBSRV job submitted to QUSRWRK
+[TRACE] 09:55:06.001 No response from NOXDBSRV after 5000ms
+[TRACE] 09:55:06.002 MCH3601 caught - stale service program objects in QGPL
+[TRACE] 10:42:17.000 Mapepire connection attempt abandoned after timeout
+```
+
+---
+
+## Related Issues Found
+
+| # | Title | State |
+|---|---|---|
+| [#3239](https://github.com/codefori/vscode-ibmi/issues/3239) | Stuck on 'Starting Mapepire' after upgrading to 3.x | 🔴 Open |
+| [#3201](https://github.com/codefori/vscode-ibmi/issues/3201) | Mapepire fails to start after system upgrade - NOXDBSRV in MSGW | ✅ Closed (fixed in 2.14.1) |
 
 ---
 
@@ -56,12 +77,12 @@ MSGW, NOXDB, server program, job waiting, database server, connection timeout, m
 
 > **AI-proposed — maintainers please verify before acting.**
 
-After upgrading to Code for IBM i 3.x, the extension attempts to start the Mapepire
-database server (NOXDBSRV). A previous Mapepire job from version 2.x is still active and
-in MSGW state, holding a lock on the NOXDBSRV service program objects in QGPL. The stale
-object references from the old version cause the new startup to fail, leaving the job stuck
-in MSGW. The extension does not time out gracefully in this state, resulting in the status
-bar hanging indefinitely at "Starting Mapepire".
+The extension does not check whether an existing NOXDBSRV job from a previous version is
+still active before attempting to start Mapepire. When upgrading from 2.x to 3.x, stale
+service program objects from the old version remain in QGPL. The new startup request hits
+these stale objects, receives MCH3601, and the job enters MSGW state. The extension then
+waits indefinitely for a response that will never arrive, with no timeout or user-visible
+error message.
 
 ---
 
@@ -69,19 +90,14 @@ bar hanging indefinitely at "Starting Mapepire".
 
 > **AI-proposed — maintainers please verify before implementation.**
 
-The root cause appears to be that Code for IBM i 3.x does not gracefully handle a
-pre-existing or stale NOXDBSRV job on the IBM i system when initiating the Mapepire
-connection. A suggested fix would be to add a startup check in the Mapepire connection
-logic that:
+A suggested fix in the Code for IBM i extension's Mapepire startup logic:
 
-1. Queries `QSYS2.ACTIVE_JOB_INFO()` for any existing NOXDB* jobs before attempting to
-   start a new server instance.
-2. Either reuses the existing job if it is healthy, or ends it cleanly before starting fresh.
-3. Implements a configurable timeout with a user-visible error message rather than hanging
-   indefinitely.
-
-This would prevent the hang both on fresh upgrades and on reconnection attempts where a
-stale job remains.
+1. Before starting Mapepire, query for any existing active NOXDB* jobs.
+2. If a job is found in an unhealthy state (MSGW), end it cleanly before starting fresh.
+3. Implement a configurable startup timeout with a clear user-visible error message
+   (e.g. "Mapepire failed to start after 30s — check extension log for details").
+4. On upgrade detection (version change), prompt the user to reinstall Mapepire server
+   objects via the existing "Install Mapepire" command.
 
 ---
 
@@ -89,35 +105,15 @@ stale job remains.
 
 - Disconnected and reconnected in Code for IBM i — hang persists
 - Restarted VS Code — hang persists
-- Verified QUSRWRK subsystem is active — confirmed active
-
----
-
-## Validation Commands
-
-Commands that can confirm whether the fix was successful:
-
-```sql
-SELECT JOB_NAME, JOB_STATUS, ELAPSED_TIME
-FROM TABLE(QSYS2.ACTIVE_JOB_INFO())
-WHERE JOB_NAME LIKE '%NOXDB%'
-```
-
-```
-WRKOBJLCK OBJ(QGPL/NOXDBSRV) OBJTYPE(*SRVPGM)
-WRKACTJOB SBS(QUSRWRK)
-```
-
-Expected after fix: No NOXDB jobs in MSGW state. No object locks. VS Code connects successfully.
 
 ---
 
 ## References
 
-- https://github.com/halcyon-tech/vscode-ibmi/issues/3239
+- https://github.com/codefori/vscode-ibmi/issues/3239
+- https://github.com/codefori/vscode-ibmi/issues/3201
 - https://github.com/Mapepire-IBMi/mapepire-server
-- https://codefori.github.io/docs/
 
 ---
 
-*Generated by IBM i Developer Detective. Suggested approach is AI-proposed and requires maintainer review before implementation.*
+*Generated by Code for IBM i Detective. Suggested approach is AI-proposed and requires maintainer review before implementation.*

@@ -1,129 +1,108 @@
-# IBM i Developer Detective — VS Code Agent Instructions
+# Code for IBM i Detective — VS Code Agent Instructions
 
 > Works with GitHub Copilot Agent mode, Claude via Cline or Continue.
 > Uses the same scripts and templates as the Bob adapter.
-> For live demo, the Bob adapter (`.bob/skills/ibmi-detective/SKILL.md`) is preferred.
+> For live demo, the Bob adapter (`.bob/skills/code-for-i-detective/SKILL.md`) is preferred.
+>
+> **Scope:** Code for IBM i VS Code extension problems only.
+> Repository: https://github.com/codefori/vscode-ibmi
 
 ---
-
-## What This Does
-
-When a developer reports an IBM i error or symptom, this agent:
-1. Runs deterministic diagnostic scripts (no AI in the data collection or matching)
-2. Matches symptoms against a known issue registry with a confidence score
-3. Generates a structured resolution report
-4. Optionally generates a ready-to-raise GitHub issue for the Code for IBM i maintainers
 
 ## Grounding Rules
 
-- Never speculate or invent diagnostic data, error messages, job names, or version numbers.
-- Always show the confidence score and band. Never hide a low score.
-- The `suggested_approach` in the GitHub issue body is always labelled "AI-proposed — maintainers please verify".
-- If a script fails, report the exact error and ask the developer to run it manually and paste the output.
+- Never speculate or invent log lines, error messages, extension versions, or issue numbers.
+- Always show GitHub issue search results exactly as returned by the script.
+- If a script fails, report the exact error and ask the developer to run it manually.
+- This agent investigates Code for IBM i extension problems only — not general IBM i issues.
 
 ---
 
-## Step 1 — Confirm Environment
+## Step 1 — Understand the Symptom
 
-Check whether IBM_I_MOCK is set to true in the environment or `.env` file.
-Tell the developer whether you are running in mock mode (offline) or live mode.
-
-Mock mode scenarios:
-- `IBM_I_MOCK_SCENARIO=port449` — simulates a port 449 connection failure
-- `IBM_I_MOCK_SCENARIO=3239` — simulates the Mapepire hang issue (Code for IBM i #3239)
-
----
-
-## Step 2 — Run the Diagnostic Runner
-
-Run in the integrated terminal:
-```
-node src/run-diagnostics.js
-```
-
-Capture the JSON output.
-
-**If output contains `"mode": "live"`:**
-Execute each SQL query in the `queries` array using your available IBM i MCP tools
-(e.g. `execute_sql_statement` if connected). If no MCP tool is available, show the
-queries to the developer and ask them to run each one in ACS or an IBM i terminal,
-then paste the results back.
-
-Assemble results into:
-```json
-{ "system_name": "...", "collected_at": "...", "mapepire_version": "...", "jobs": [...], "log_entries": [...] }
-```
+Ask or read from the developer's message:
+- What error or behaviour are they seeing in the Code for IBM i extension?
+- Which extension version are they on?
+- Did this start after an upgrade? From which version?
+- OS and VS Code version?
 
 ---
 
-## Step 3 — Run the Symptom Matcher
+## Step 2 — Collect Extension Diagnostics
 
-Pass the diagnostic JSON to the matcher via stdin:
+Run in terminal:
+```
+node src/collect-diagnostics.js
+```
+
+In mock mode (`IBM_I_MOCK=true`): reads pre-built log file, no VS Code required.
+In live mode: reads Code for IBM i extension logs from local VS Code log directories.
+
+Capture the JSON output — it contains:
+- `extension_version`, `vscode_version`, `platform`
+- `output_log` — Code for IBM i output channel text
+- `connection_trace` — connection trace if present
+- `error_summary` — key error/warning lines
+
+---
+
+## Step 3 — Search GitHub Issues
+
+Extract 3–6 keywords from the symptom and error_summary. Run:
 
 **macOS / Linux:**
 ```bash
-echo '<diagnostic-json>' | node src/match-symptom.js
+node src/search-github-issues.js "keyword1 keyword2 keyword3"
 ```
 
 **Windows PowerShell:**
 ```powershell
-'<diagnostic-json>' | node src/match-symptom.js
+node src/search-github-issues.js "keyword1 keyword2 keyword3"
 ```
 
-Capture the matcher output JSON:
-```json
-{
-  "matched": true,
-  "confidence_score": 83,
-  "confidence_band": "high",
-  "matched_keywords": [...],
-  "suggest_github_issue": true,
-  "issue": { ...registry entry... }
-}
-```
+Mock mode returns `src/mock-github-issues.json` automatically.
+Live mode searches https://github.com/codefori/vscode-ibmi/issues via GitHub API.
+Set `GITHUB_TOKEN` env var for higher rate limits.
 
 ---
 
-## Step 4 — Branch on Confidence Band
+## Step 4 — Analyse and Branch
 
-**high or medium confidence + matched=true:**
-- Show the matched issue title and confidence score.
-- Present `resolution_steps` as a numbered list.
-- Present `validation_commands` as a runnable code block.
+**If matching issues found:**
+- Report each matched issue: number, title, URL, state (open/closed)
+- **Open:** known active issue — show workarounds from body_excerpt, link to issue
+- **Closed:** fix was released — check if developer's version is newer, recommend upgrade if not
+- Ask whether developer wants to raise a new issue or track the existing one
 
-**low confidence + matched=true:**
-- Show the score. Warn the developer it is a low-confidence match.
-- Show resolution steps with a "unverified — review carefully" warning.
-- Perform open-ended analysis of the raw diagnostic JSON for additional findings.
-
-**matched=false:**
-- Tell the developer no known issue was found.
-- Analyse the raw diagnostic JSON for anomalies, error codes, and job states.
+**If no match found:**
+- This appears to be a new issue
+- Analyse `output_log` and `error_summary` for root cause evidence
+- Propose a solution approach — label it explicitly as AI-proposed
+- Proceed to Step 5
 
 ---
 
-## Step 5 — Fill the Resolution Report
+## Step 5 — Generate GitHub Issue
 
-Read `src/report-template.md`.
-Replace every `{{PLACEHOLDER}}` token with data from the diagnostic JSON and matcher result.
-Present the completed report. Offer to save it as `docs/report-<timestamp>.md`.
+Read `src/github-issue-template.md`.
+Fill every `{{PLACEHOLDER}}` using diagnostic data, search results, and analysis.
+Include footer verbatim:
+*"Generated by Code for IBM i Detective. Suggested approach is AI-proposed and requires
+maintainer review before implementation."*
+
+Present the completed issue. Offer to save as `docs/github-issue-<timestamp>.md`.
+Direct developer to: https://github.com/codefori/vscode-ibmi/issues/new
 
 ---
 
-## Step 6 — Offer the GitHub Issue
+## Step 6 — Summary
 
-Always offer this — `suggest_github_issue` is always true:
-
-> "Would you like a structured GitHub issue body for the Code for IBM i maintainers?
-> It includes your diagnostic data, confidence score, and a suggested resolution approach —
-> ready to paste into https://github.com/halcyon-tech/vscode-ibmi/issues/new"
-
-If accepted:
-- Read `src/github-issue-template.md`.
-- Fill every `{{PLACEHOLDER}}` token.
-- Include the footer verbatim:
-  *"Generated by IBM i Developer Detective. Suggested approach is AI-proposed and requires maintainer review before implementation."*
-- Offer to save as `docs/github-issue-<timestamp>.md`.
+Brief summary:
+- Problem (one sentence)
+- Logs collected: yes/no, key errors
+- GitHub issues found: count and open/closed
+- Action: existing issue linked / new issue generated
+- Next step for developer
 
 ---
 
@@ -131,12 +110,12 @@ If accepted:
 
 | File | Purpose |
 |---|---|
-| `src/run-diagnostics.js` | Collect IBM i diagnostic data (mock or live) |
-| `src/match-symptom.js` | Deterministic symptom matching with confidence score |
-| `src/known-issues.json` | Known Issue Registry (3 entries) |
+| `src/collect-diagnostics.js` | Collect Code for IBM i extension logs (mock or live) |
+| `src/search-github-issues.js` | Search codefori/vscode-ibmi GitHub issues |
+| `src/mock-extension-logs-mapepire-hang.json` | Mock logs for Mapepire hang demo |
+| `src/mock-extension-logs-port449.json` | Mock logs for port 449 demo |
+| `src/mock-github-issues.json` | Mock GitHub API response for offline demo |
+| `src/github-issue-template.md` | GitHub issue body template |
 | `src/report-template.md` | Developer resolution report template |
-| `src/github-issue-template.md` | GitHub issue body template for maintainers |
-| `src/mock-diagnostics-port449.json` | Mock data for tier-1 demo (port 449) |
-| `src/mock-diagnostics-3239.json` | Mock data for tier-2 demo (issue #3239) |
-| `docs/sample-report-3239.md` | Pre-filled resolution report (demo reference) |
-| `docs/sample-issue-3239.md` | Pre-filled GitHub issue body (demo reference) |
+| `docs/sample-report-3239.md` | Pre-filled resolution report (demo safety net) |
+| `docs/sample-issue-3239.md` | Pre-filled GitHub issue body (demo safety net) |
