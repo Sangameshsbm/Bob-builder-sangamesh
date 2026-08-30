@@ -1,24 +1,24 @@
-# IBM i Developer Detective
+# Code for IBM i Developer Detective
 
 > IBM TechXchange 2026 Pre-conference Dev Day Hackathon project.
 
-A working prototype that improves the IBM i developer troubleshooting workflow using IBM Bob.
+A working prototype that improves the Code for IBM i VS Code extension troubleshooting workflow using IBM Bob.
 A developer pastes an error or symptom into a single Bob prompt — the Detective collects
-diagnostic data, matches it against a known issue registry, scores confidence, and outputs
-a structured resolution report and a ready-to-raise GitHub issue for the Code for IBM i
-maintainer team. No live IBM i required for the demo.
+diagnostic data from the Code for IBM i extension logs, matches it against a known issue registry,
+scores confidence, and outputs a structured resolution report and a ready-to-raise GitHub issue
+for the Code for IBM i maintainer team. No live IBM i required for the demo.
 
 ---
 
 ## The Problem
 
-IBM i developers waste 15–30 minutes every time they hit an unfamiliar error:
+Code for IBM i developers waste 15–30 minutes every time the extension breaks:
 - Search GitHub issues and long threads manually
-- Run CL commands one by one to gather diagnostic data
-- Piece together a root cause from scattered comments
-- Write a vague support ticket or GitHub issue from scratch
+- Manually locate the Code for IBM i extension log in VS Code's output panel
+- Piece together a root cause from scattered comments in a 40-comment thread
+- Write a vague support ticket or GitHub issue from scratch — usually missing the data maintainers actually need
 
-**IBM i Developer Detective eliminates that workflow.**
+**Code for IBM i Developer Detective eliminates that workflow.**
 
 ---
 
@@ -26,8 +26,8 @@ IBM i developers waste 15–30 minutes every time they hit an unfamiliar error:
 
 | Tier | Issue | Time |
 |---|---|---|
-| Warm-up | Port 449 blocked — cannot connect to IBM i | ~30 seconds |
-| Main act | [Code for IBM i #3239](https://github.com/halcyon-tech/vscode-ibmi/issues/3239) — stuck at "Starting Mapepire" after upgrading to 3.x | ~90 seconds |
+| Warm-up | Code for IBM i cannot connect — port 449 blocked | ~30 seconds |
+| Main act | [Code for IBM i #3239](https://github.com/codefori/vscode-ibmi/issues/3239) — stuck at "Starting Mapepire" after upgrading to 3.x | ~90 seconds |
 
 See [`docs/demo-brief.md`](docs/demo-brief.md) for the full presenter script.
 
@@ -38,7 +38,7 @@ See [`docs/demo-brief.md`](docs/demo-brief.md) for the full presenter script.
 ```
 Two orchestration adapters — one core engine
 ────────────────────────────────────────────
-Bob adapter:     .bob/skills/ibmi-detective/SKILL.md  +  .bob/custom_modes.yaml
+Bob adapter:     .bob/skills/code-for-i-detective/SKILL.md  +  .bob/custom_modes.yaml
 VS Code adapter: AGENT.md  (Copilot Agent mode / Claude via Cline or Continue)
 
 Both call the same IDE-agnostic scripts:
@@ -62,7 +62,7 @@ Full Mermaid diagrams: [`docs/architecture.md`](docs/architecture.md)
 | Diagnostic runner — mock mode | **Deterministic** | `src/run-diagnostics.js` |
 | Diagnostic runner — live SQL emit | **Deterministic** | `src/run-diagnostics.js` |
 | Symptom matcher + confidence score | **Deterministic** | `src/match-symptom.js` |
-| Bob skill + mode orchestration | Orchestration | `.bob/skills/ibmi-detective/` |
+| Bob skill + mode orchestration | Orchestration | `.bob/skills/code-for-i-detective/` |
 | VS Code adapter | Orchestration | `AGENT.md` |
 | Resolution report prose | **AI** | fills `src/report-template.md` |
 | GitHub issue body | **AI** | fills `src/github-issue-template.md` |
@@ -86,7 +86,7 @@ Copy `.env.example` to `.env` — default values are already set for offline dem
 
 In Bob (any mode), type:
 ```
-investigate ibmi issue: cannot connect to IBM i, port 449 connection refused
+investigate Code for IBM i issue: cannot connect, port 449 connection refused
 ```
 
 Expected: matched `port-449-blocked`, 89% confidence, high band, resolution steps presented.
@@ -95,7 +95,7 @@ Expected: matched `port-449-blocked`, 89% confidence, high band, resolution step
 
 In Bob, type:
 ```
-investigate ibmi issue: stuck at Starting Mapepire after upgrading to Code for IBM i 3.x
+investigate Code for IBM i issue: stuck at Starting Mapepire after upgrading to 3.x
 ```
 
 Expected: matched `mapepire-hang-3239`, 100% confidence, high band, 6 resolution steps,
@@ -153,9 +153,9 @@ The live demo uses Bob; `AGENT.md` demonstrates the design-in compatibility.
 
 ```
 .bob/
-  skills/ibmi-detective/
+  skills/code-for-i-detective/
     SKILL.md                     Bob skill — entry-point trigger
-  custom_modes.yaml              ibmi-detective mode definition
+  custom_modes.yaml              code-for-i-detective mode definition
 
 src/
   known-issues.json              Known Issue Registry (3 entries)
@@ -205,4 +205,4 @@ No code changes required. The matcher picks it up on the next run.
 
 Credentials are never hardcoded. See `.env.example` for required variables.
 `.gitignore` and `.bobignore` protect all credential files.
-IBM_I_MOCK=true in `.env` ensures no IBM i connection is attempted during demo.
+IBM_I_MOCK=true in `.env` ensures no live Code for IBM i extension connection is attempted during demo.
