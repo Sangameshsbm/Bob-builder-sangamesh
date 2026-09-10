@@ -118,3 +118,23 @@ build/
 # DO NOT REMOVE ABOVE PATTERNS
 # Add project-specific patterns below
 # ============================================
+# ============================================
+# PERSONAL REFERENCE FILES — NOT FOR REPO
+# ============================================
+
+# Plan and proposal documents (personal reference only)
+blog-ibm-devday-plan.md
+code-for-ibmi-detective-proposal-plan.md
+
+# Blog posts (published separately on Hashnode)
+blog/
+
+# Proposal docs (personal reference only)
+docs/community-strategy.md
+docs/direct-contribution-design.md
+docs/integration-paths.md
+docs/rfc-github-issue.md
+
+# Companion extension (lives in its own repo)
+# https://github.com/Sangameshsbm/code-for-ibmi-detective
+vscode-ibmi-detective/
